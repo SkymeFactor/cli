@@ -249,7 +249,8 @@ namespace cli
     class Command
     {
     public:
-        explicit Command(std::string _name) : name(std::move(_name)), enabled(true) {}
+        explicit Command(std::string _name, std::string _description = "")
+            : name(std::move(_name)), description(std::move(_description)), enabled(true) {}
         virtual ~Command() noexcept = default;
 
         // disable copy and move semantics
@@ -274,9 +275,11 @@ namespace cli
         }
     protected:
         const std::string& Name() const { return name; }
+        const std::string& Description() const { return description; }
         bool IsEnabled() const { return enabled; }
     private:
         const std::string name;
+        const std::string description;
         bool enabled;
     };
 
@@ -452,12 +455,11 @@ namespace cli
         Menu(Menu&&) = delete;
         Menu& operator = (Menu&&) = delete;
 
-        Menu() : Command({}), parent(nullptr), description(), cmds(std::make_shared<Cmds>()) {}
+        Menu() : Command({}), parent(nullptr), cmds(std::make_shared<Cmds>()) {}
 
         explicit Menu(const std::string& _name, std::string desc = "(menu)", const std::string& _prompt="") :
-            Command(_name),
+            Command(_name, std::move(desc)),
             parent(nullptr),
-            description(std::move(desc)),
             prompt(_prompt.empty() ? _name : _prompt),
             cmds(std::make_shared<Cmds>())
         {}
@@ -501,7 +503,7 @@ namespace cli
             return HandleCommand({Name()}, cmdLine, session);
         }
 
-        bool ExecParent(const std::vector<std::string>& cmdLine, CliSession& session)
+        virtual bool ExecParent(const std::vector<std::string>& cmdLine, CliSession& session)
         {
             return HandleCommand({Name(), ParentShortcut()}, cmdLine, session);
         }
@@ -517,7 +519,7 @@ namespace cli
             return (parent && parent->ExecParent(cmdLine, session));
         }
 
-        std::string Prompt() const
+        virtual std::string Prompt() const
         {
             return prompt;
         }
@@ -534,7 +536,7 @@ namespace cli
         void Help(std::ostream& out) const override
         {
             if (!IsEnabled()) return;
-            out << " - " << Name() << "\n\t" << description << "\n";
+            out << " - " << Name() << "\n\t" << Description() << "\n";
         }
 
         // returns:
@@ -577,7 +579,7 @@ namespace cli
             return Command::GetCompletionRecursive(line);
         }
 
-    private:
+    protected:
 
         /**
          * Retrieves completion suggestions for the user input recursively, including the parent command.
@@ -682,6 +684,8 @@ namespace cli
             return "..";
         }
 
+    private:
+
         template <typename F, typename R, typename ... Args>
         CmdHandler Insert(const std::string& name, const std::string& help, const std::vector<std::string>& parDesc, F& f, R (F::*)(std::ostream& out, Args...) const);
 
@@ -692,7 +696,6 @@ namespace cli
         CmdHandler Insert(const std::string& name, const std::string& help, const std::vector<std::string>& parDesc, F& f, R (F::*)(std::ostream& out, std::vector<std::string>) const);
 
         Menu* parent{ nullptr };
-        const std::string description;
         const std::string prompt;
         // using shared_ptr instead of unique_ptr to get a weak_ptr
         // for the CmdHandler::Descriptor
