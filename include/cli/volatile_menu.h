@@ -92,7 +92,7 @@ class AliasedMenu : public Menu
          */
         std::vector<std::string> GetCompletionRecursive(const std::string& line) const override
         {
-            
+
             for (const auto& name : fetch_aliases_()) {
                 if (line.rfind(name, 0) == 0) // line starts_with Name()
                 {
@@ -122,6 +122,7 @@ class AliasedMenu : public Menu
     {
         auto vol_menu = std::make_unique<cli::AliasedMenu>(_name, desc);
         vol_menu->add_aliases_fetcher(aliases_fetcher_);
+        vol_menu->add_alias_notifier(alias_notifier_);
         return std::unique_ptr<Menu>{static_cast<cli::Menu*>(vol_menu.release())};
     }
 
