@@ -33,11 +33,10 @@ class AliasedMenu : public Menu
 
         bool Exec(const std::vector<std::string>& cmdLine, CliSession& session) override
         {
+            prompt_ = cmdLine[0];
+            alias_notifier_(prompt_);
             bool ret = HandleCommand({fetch_aliases_()}, cmdLine, session);
-            if (ret && cmdLine.size() == 1) {
-                prompt_ = cmdLine[0];
-                alias_notifier_(prompt_);
-            }
+            
             return ret;
         }
 
@@ -46,12 +45,7 @@ class AliasedMenu : public Menu
             auto aliases = fetch_aliases_();
             aliases.emplace_back(ParentShortcut());
 
-            bool ret = HandleCommand(aliases, cmdLine, session);
-            if (ret && cmdLine.size() == 1) {
-                prompt_ = cmdLine[0];
-                alias_notifier_(prompt_);
-            }
-            return ret;
+            return HandleCommand(aliases, cmdLine, session);
         }
 
         std::string Prompt() const override
