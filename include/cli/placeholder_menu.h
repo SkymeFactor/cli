@@ -1,22 +1,24 @@
-#pragma once
+#ifndef CLI_PLACEHOLDER_H
+#define CLI_PLACEHOLDER_H
+
 #include <cli/cli.h>
 
 namespace cli {
 
-class AliasedMenu : public Menu
+class PlaceholderMenu : public Menu
     {
     public:
         using strvec_t = std::vector<std::string>;
 
         // disable value and move semantics
-        AliasedMenu(const AliasedMenu&) = delete;
-        AliasedMenu& operator = (const AliasedMenu&) = delete;
-        AliasedMenu(AliasedMenu&&) = delete;
-        AliasedMenu& operator = (AliasedMenu&&) = delete;
+        PlaceholderMenu(const PlaceholderMenu&) = delete;
+        PlaceholderMenu& operator = (const PlaceholderMenu&) = delete;
+        PlaceholderMenu(PlaceholderMenu&&) = delete;
+        PlaceholderMenu& operator = (PlaceholderMenu&&) = delete;
 
-        AliasedMenu() : Menu() {}
+        PlaceholderMenu() : Menu() {}
 
-        explicit AliasedMenu(const std::string& _name, std::string desc = "(menu)") :
+        explicit PlaceholderMenu(const std::string& _name, std::string desc = "(menu)") :
             Menu(_name, desc, "")
         {}
 
@@ -28,16 +30,14 @@ class AliasedMenu : public Menu
 
         void add_alias_notifier(std::function<void(std::string)> notifier)
         {
-            alias_notifier_ = notifier;
+            notify_on_select_ = notifier;
         }
 
         bool Exec(const std::vector<std::string>& cmdLine, CliSession& session) override
         {
             prompt_ = cmdLine[0];
-            alias_notifier_(prompt_);
-            bool ret = HandleCommand({fetch_aliases_()}, cmdLine, session);
-            
-            return ret;
+            notify_on_select_(prompt_);
+            return HandleCommand({fetch_aliases_()}, cmdLine, session);
         }
 
         bool ExecParent(const std::vector<std::string>& cmdLine, CliSession& session) override
@@ -56,17 +56,10 @@ class AliasedMenu : public Menu
         void Help(std::ostream& out) const override
         {
             if (!IsEnabled()) return;
-            out << " - " << Name();
-            auto aliases = fetch_aliases_();
-            if (!aliases.empty()) {
-                out << " {";
-                out << aliases.front();
-                std::for_each(aliases.begin() + 1, aliases.end(), [&](const std::string& alias){
-                    out << '|' << alias;
-                });
-                out << '}';
+            
+            for (const auto& alias : fetch_aliases_()) {
+                out << " - " << alias << "\n\t" << Description() << "\n";
             }
-            out << "\n\t" << Description() << "\n";
         }
 
         /**
@@ -101,23 +94,24 @@ class AliasedMenu : public Menu
     private:
 
         std::function<strvec_t()> fetch_aliases_ {};
-        std::function<void(std::string)> alias_notifier_ {};
+        std::function<void(std::string)> notify_on_select_ {};
         std::string prompt_;
     };
 
 
     std::unique_ptr<Menu>
-    make_volatile_menu(
-        const std::string& _name,
-        std::function<std::vector<std::string>()> aliases_fetcher_ = {},
-        std::function<void(std::string)> alias_notifier_ = {},
+    make_placeholder_menu(const std::string& _name,
+        std::function<std::vector<std::string>()> alias_fetcher_ = {},
+        std::function<void(std::string)> on_select_notifier_ = {},
         std::string desc = "(dynamic menu)"
     )
     {
-        auto vol_menu = std::make_unique<cli::AliasedMenu>(_name, desc);
-        vol_menu->add_aliases_fetcher(aliases_fetcher_);
-        vol_menu->add_alias_notifier(alias_notifier_);
+        auto vol_menu = std::make_unique<cli::PlaceholderMenu>(_name, desc);
+        vol_menu->add_aliases_fetcher(alias_fetcher_);
+        vol_menu->add_alias_notifier(on_select_notifier_);
         return std::unique_ptr<Menu>{static_cast<cli::Menu*>(vol_menu.release())};
     }
 
-}
+} // namespace cli
+
+#endif // CLI_PLACEHOLDER_H

@@ -29,7 +29,7 @@
 
 
 # pluginmanager, filesession and simplelocalsession can be compiled w/o asio
-set(SOURCES pluginmanager filesession simplelocalsession)
+set(SOURCES placeholdermenutest pluginmanager filesession simplelocalsession)
 
 if (CLI_UseBoostAsio OR CLI_UseStandaloneAsio)
     if (CLI_UseBoostAsio)
