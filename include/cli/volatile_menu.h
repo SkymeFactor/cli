@@ -26,11 +26,17 @@ class AliasedMenu : public Menu
             fetch_aliases_ = fetcher;
         }
 
+        void add_alias_notifier(std::function<void(std::string)> notifier)
+        {
+            alias_notifier_ = notifier;
+        }
+
         bool Exec(const std::vector<std::string>& cmdLine, CliSession& session) override
         {
             bool ret = HandleCommand({fetch_aliases_()}, cmdLine, session);
             if (ret && cmdLine.size() == 1) {
                 prompt_ = cmdLine[0];
+                alias_notifier_(prompt_);
             }
             return ret;
         }
@@ -43,6 +49,7 @@ class AliasedMenu : public Menu
             bool ret = HandleCommand(aliases, cmdLine, session);
             if (ret && cmdLine.size() == 1) {
                 prompt_ = cmdLine[0];
+                alias_notifier_(prompt_);
             }
             return ret;
         }
@@ -59,9 +66,7 @@ class AliasedMenu : public Menu
             auto aliases = fetch_aliases_();
             if (!aliases.empty()) {
                 out << " {";
-                if (aliases.size() > 1) {
-                    out << aliases.front();
-                }
+                out << aliases.front();
                 std::for_each(aliases.begin() + 1, aliases.end(), [&](const std::string& alias){
                     out << '|' << alias;
                 });
@@ -87,11 +92,13 @@ class AliasedMenu : public Menu
          */
         std::vector<std::string> GetCompletionRecursive(const std::string& line) const override
         {
+            
             for (const auto& name : fetch_aliases_()) {
                 if (line.rfind(name, 0) == 0) // line starts_with Name()
                 {
                     return Menu::GetCompletionRecursiveHelper(line, {name});
                 }
+                if (name.rfind(line, 0) == 0) return {name};
             }
 
             return Command::GetCompletionRecursive(line);
@@ -100,12 +107,18 @@ class AliasedMenu : public Menu
     private:
 
         std::function<strvec_t()> fetch_aliases_ {};
+        std::function<void(std::string)> alias_notifier_ {};
         std::string prompt_;
     };
 
 
     std::unique_ptr<Menu>
-    make_volatile_menu(const std::string& _name, std::string desc = "(dynamic menu)", std::function<std::vector<std::string>()> aliases_fetcher_ = {})
+    make_volatile_menu(
+        const std::string& _name,
+        std::function<std::vector<std::string>()> aliases_fetcher_ = {},
+        std::function<void(std::string)> alias_notifier_ = {},
+        std::string desc = "(dynamic menu)"
+    )
     {
         auto vol_menu = std::make_unique<cli::AliasedMenu>(_name, desc);
         vol_menu->add_aliases_fetcher(aliases_fetcher_);
